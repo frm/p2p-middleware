@@ -23,7 +23,8 @@ defmodule Gossip do
     {:ok, server} = start_server(port)
 
     state =
-      default_state |> Map.put(:messages, [])
+      default_state
+      |> Map.put(:messages, [])
       |> Map.put(:neighbours, %{})
       |> Map.put(:server, server)
 
