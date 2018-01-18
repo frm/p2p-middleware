@@ -9,6 +9,10 @@ defmodule Gossip do
     GenServer.cast(pid, {:accept, socket})
   end
 
+  def recv(pid, msg) do
+    GenServer.call(pid, {:recv, msg})
+  end
+
   # Client API
 
   def init(%{port: port} = default_state) do
@@ -29,6 +33,10 @@ defmodule Gossip do
     new_state = %{state | neighbours: neighbours}
 
     {:noreply, new_state}
+  end
+
+  def handle_call({:recv, msg}, _from, state) do
+    {:reply, msg, state}
   end
 
   defp start_server(port) do

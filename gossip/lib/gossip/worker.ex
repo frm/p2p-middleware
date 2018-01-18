@@ -2,28 +2,29 @@ defmodule Gossip.Worker do
   use Task
 
   def start_link(args) do
-    Task.start_link(__MODULE__, :perform, args)
+    Task.start_link(__MODULE__, :loop_again, args)
   end
 
-  def perform(_pid, socket) do
-    echo_loop(socket)
-  end
-
-  defp echo_loop(socket) do
-    result = case :gen_tcp.recv(socket, 0) do
+  def loop_again(pid, socket) do
+    loop = case :gen_tcp.recv(socket, 0) do
       {:ok, msg} ->
-        :gen_tcp.send(socket, msg)
-        :ok
+        Gossip.recv(pid, msg)
+        |> handle_reply(socket)
+
+        true
 
       {:error, :closed} ->
         IO.puts "socket is closed"
-        :closed
+        false
 
       {:error, reason} ->
         IO.inspect reason
-        :error
+        false
     end
 
-    result == :ok and echo_loop(socket)
+    loop and loop_again(pid, socket)
   end
+
+  defp handle_reply(:noreply, _socket), do: nil
+  defp handle_reply(reply, socket), do: :gen_tcp.send(socket, reply)
 end
