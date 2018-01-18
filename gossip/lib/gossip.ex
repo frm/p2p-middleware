@@ -9,6 +9,10 @@ defmodule Gossip do
     GenServer.cast(pid, {:accept, socket})
   end
 
+  def disconnect(pid, worker) do
+    GenServer.cast(pid, {:disconnect, worker})
+  end
+
   def recv(pid, msg) do
     GenServer.call(pid, {:recv, msg})
   end
@@ -20,16 +24,23 @@ defmodule Gossip do
 
     state =
       default_state |> Map.put(:messages, [])
-      |> Map.put(:neighbours, [])
+      |> Map.put(:neighbours, %{})
       |> Map.put(:server, server)
 
     {:ok, state}
   end
 
   def handle_cast({:accept, socket}, state) do
-    start_worker(socket)
+    {:ok, pid} = start_worker(socket)
 
-    neighbours = [socket | state[:neighbours]]
+    neighbours = Map.put(state[:neighbours], pid, socket)
+    new_state = %{state | neighbours: neighbours}
+
+    {:noreply, new_state}
+  end
+
+  def handle_cast({:disconnect, pid}, state) do
+    neighbours = Map.delete(state[:neighbours], pid)
     new_state = %{state | neighbours: neighbours}
 
     {:noreply, new_state}
@@ -46,10 +57,18 @@ defmodule Gossip do
   end
 
   defp start_worker(socket) do
-    Supervisor.start_link([
+    {:ok, supervisor} = Supervisor.start_link([
       {Gossip.Worker, [self(), socket]}
     ],
     strategy: :one_for_one,
     max_restarts: 0)
+
+    {:ok, worker_pid_of(supervisor)}
+  end
+
+  defp worker_pid_of(supervisor) do
+    Supervisor.which_children(supervisor)
+    |> List.first
+    |> elem(1)
   end
 end

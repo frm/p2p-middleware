@@ -14,7 +14,7 @@ defmodule Gossip.Worker do
         true
 
       {:error, :closed} ->
-        IO.puts "socket is closed"
+        Gossip.disconnect(pid, self())
         false
 
       {:error, reason} ->
