@@ -13,6 +13,10 @@ defmodule Gossip do
     GenServer.cast(pid, {:disconnect, worker})
   end
 
+  def broadcast(pid, msg) do
+    GenServer.cast(pid, {:broadcast, msg})
+  end
+
   def recv(pid, msg) do
     GenServer.call(pid, {:recv, msg})
   end
@@ -33,6 +37,7 @@ defmodule Gossip do
 
   def handle_cast({:accept, socket}, state) do
     {:ok, pid} = start_worker(socket)
+    :gen_tcp.controlling_process(socket, pid)
 
     neighbours = Map.put(state[:neighbours], pid, socket)
     new_state = %{state | neighbours: neighbours}
@@ -45,6 +50,14 @@ defmodule Gossip do
     new_state = %{state | neighbours: neighbours}
 
     {:noreply, new_state}
+  end
+
+  def handle_cast({:broadcast, msg}, %{neighbours: neighbours} = state) do
+    Enum.each neighbours, fn({pid, _socket}) ->
+      send pid, {:send, msg}
+    end
+
+    {:noreply, state}
   end
 
   def handle_call({:recv, msg}, _from, state) do

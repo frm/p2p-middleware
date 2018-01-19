@@ -18,6 +18,9 @@ defmodule Gossip.Server do
 
   defp accept_loop(pid, server_socket) do
     {:ok, client} = :gen_tcp.accept(server_socket)
+    :inet.setopts(client, [active: true])
+    :gen_tcp.controlling_process(client, pid)
+
     Gossip.accept(pid, client)
 
     accept_loop(pid, server_socket)

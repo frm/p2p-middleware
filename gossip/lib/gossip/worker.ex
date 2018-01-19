@@ -6,19 +6,24 @@ defmodule Gossip.Worker do
   end
 
   def loop_again(pid, socket) do
-    loop = case :gen_tcp.recv(socket, 0) do
-      {:ok, msg} ->
+    loop = receive do
+      {:tcp, port, msg} ->
         Gossip.recv(pid, msg)
-        |> handle_reply(socket)
+        |> handle_reply(port)
 
         true
 
-      {:error, :closed} ->
+      {:tcp_closed, port} ->
+        :gen_tcp.close(port)
         Gossip.disconnect(pid, self())
         false
 
-      {:error, reason} ->
-        IO.inspect reason
+      {:send, msg} ->
+        :gen_tcp.send(socket, msg)
+        true
+
+      msg ->
+        IO.inspect msg
         false
     end
 
