@@ -7,7 +7,8 @@ defmodule Gossip.Mixfile do
       version: "0.1.0",
       elixir: "~> 1.5",
       start_permanent: Mix.env == :prod,
-      deps: deps()
+      elixirc_paths: elixirc_paths(Mix.env),
+      deps: deps(),
     ]
   end
 
@@ -25,4 +26,7 @@ defmodule Gossip.Mixfile do
       # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"},
     ]
   end
+
+  def elixirc_paths(:test), do: ["lib", "test/support"]
+  def elixirc_paths(_), do: ["lib"]
 end

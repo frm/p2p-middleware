@@ -2,11 +2,11 @@ defmodule Gossip.Worker do
   use Task
 
   def start_link(args) do
-    Task.start_link(__MODULE__, :loop_again, args)
+    Task.start_link(__MODULE__, :recv_loop, args)
   end
 
-  def loop_again(pid, socket) do
-    loop = receive do
+  def recv_loop(pid, socket) do
+    continue = receive do
       {:tcp, port, msg} ->
         Gossip.recv(pid, msg)
         |> handle_reply(port)
@@ -16,18 +16,21 @@ defmodule Gossip.Worker do
       {:tcp_closed, port} ->
         :gen_tcp.close(port)
         Gossip.disconnect(pid, self())
+
         false
 
       {:send, msg} ->
         :gen_tcp.send(socket, msg)
+
         true
 
       msg ->
         IO.inspect msg
+
         false
     end
 
-    loop and loop_again(pid, socket)
+    continue and recv_loop(pid, socket)
   end
 
   defp handle_reply(:noreply, _socket), do: nil

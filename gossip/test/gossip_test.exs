@@ -1,16 +1,13 @@
 defmodule GossipTest do
   use ExUnit.Case
+  use Gossip.TCPSocketCase
+
   doctest Gossip
 
   @default_state %{port: 0,
                    neighbours: %{},
                    messages: [],
                    server: self()}
-
-  @socket_opts [:binary,
-                packet: 0,
-                active: false,
-                reuseaddr: :true]
 
   describe "init/1" do
     test "creates a server process" do
@@ -28,7 +25,7 @@ defmodule GossipTest do
   describe "handle_cast/2 for :accept messages" do
     test "creates a worker process" do
       {:ok, _} = Gossip.start_link(3000)
-      {:ok, socket} = connect_to_socket(3000)
+      {:ok, socket} = connect_to_tcp_socket(3000)
 
       {:noreply, state} = Gossip.handle_cast({:accept, socket}, @default_state)
 
@@ -38,7 +35,7 @@ defmodule GossipTest do
 
     test "updates the neighbour list" do
       {:ok, _} = Gossip.start_link(3000)
-      {:ok, socket} = connect_to_socket(3000)
+      {:ok, socket} = connect_to_tcp_socket(3000)
 
       {:noreply, state} = Gossip.handle_cast({:accept, socket}, @default_state)
 
@@ -49,7 +46,7 @@ defmodule GossipTest do
   describe "handle_cast/2 for :disconnect messages" do
     test "updates the neighbour list" do
       {:ok, state} = Gossip.init(%{port: 3000})
-      {:ok, socket} = connect_to_socket(3000)
+      {:ok, socket} = connect_to_tcp_socket(3000)
       {:noreply, state} = Gossip.handle_cast({:accept, socket}, state)
       pid = Enum.at(state.neighbours, 0) |> elem(0)
 
@@ -67,9 +64,5 @@ defmodule GossipTest do
 
       {:reply, ^str, %{}} = response
     end
-  end
-
-  defp connect_to_socket(port) do
-    :gen_tcp.connect('localhost', port, @socket_opts)
   end
 end
