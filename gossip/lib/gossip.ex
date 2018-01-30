@@ -25,12 +25,13 @@ defmodule Gossip do
 
   def init(%{port: port} = default_state) do
     {:ok, server} = start_server(port)
+    {:ok, message_agent} = start_message_agent()
 
     state =
       default_state
-      |> Map.put(:messages, [])
       |> Map.put(:neighbours, %{})
       |> Map.put(:server, server)
+      |> Map.put(:message_agent, message_agent)
 
     {:ok, state}
   end
@@ -52,9 +53,15 @@ defmodule Gossip do
     {:noreply, new_state}
   end
 
-  def handle_cast({:broadcast, msg}, %{neighbours: neighbours} = state) do
+  def handle_cast({:broadcast, msg}, state) do
+    %{neighbours: neighbours, message_agent: message_agent} = state
+    {:ok, packed_msg} =
+      message_agent
+      |> MessageAgent.build!(msg)
+      |> MessageAgent.pack
+
     Enum.each neighbours, fn({pid, _socket}) ->
-      send pid, {:send, msg}
+      send pid, {:send, packed_msg}
     end
 
     {:noreply, state}
@@ -63,6 +70,8 @@ defmodule Gossip do
   def handle_call({:recv, msg}, _from, state) do
     {:reply, msg, state}
   end
+
+  defp start_message_agent, do: MessageAgent.start_link()
 
   defp start_server(port) do
     Supervisor.start_link([

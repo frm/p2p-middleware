@@ -16,6 +16,10 @@ defmodule Gossip.TCPSocketCase do
         :gen_tcp.connect('localhost', port, @socket_opts)
       end
 
+      def assert_reply(socket) do
+        assert {:ok, reply} = :gen_tcp.recv(socket, 0)
+      end
+
       def assert_reply(socket, expected_reply) do
         {:ok, reply} = :gen_tcp.recv(socket, 0)
 

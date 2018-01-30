@@ -22,6 +22,7 @@ defmodule Gossip.Mixfile do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
+      {:msgpax, "~> 2.0"},
     ]
   end
 

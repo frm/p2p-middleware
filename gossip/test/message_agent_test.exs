@@ -67,4 +67,29 @@ defmodule MessageAgentTest do
       end
     end
   end
+
+  describe "build!/2" do
+    test "increments the id" do
+      {:ok, agent} = MessageAgent.start_link()
+      first_id = MessageAgent.get_id(agent)
+
+      MessageAgent.build!(agent, "hello")
+
+      assert MessageAgent.get_id(agent) != first_id
+    end
+
+    test "adds the message to the received messages list" do
+      {:ok, agent} = MessageAgent.start_link()
+
+      msg = MessageAgent.build!(agent, "hello")
+
+      refute MessageAgent.new_msg?(agent, msg)
+    end
+
+    test "returns a well-formed message" do
+      {:ok, agent} = MessageAgent.start_link()
+
+      assert %{id: _id, content: _content} = MessageAgent.build!(agent, "hello")
+    end
+  end
 end

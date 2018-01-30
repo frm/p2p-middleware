@@ -1,6 +1,18 @@
 defmodule MessageAgent do
+  defdelegate pack(msg), to: Msgpax
+  defdelegate unpack(msg), to: Msgpax
+  defdelegate pack!(msg), to: Msgpax
+  defdelegate unpack!(msg), to: Msgpax
+
   def start_link do
     Agent.start_link fn -> %{id: 0, msgs: MapSet.new} end
+  end
+
+  def build!(pid, content) do
+    id = MessageAgent.next_id(pid)
+    MessageAgent.put_msg(pid, id)
+
+    %{id: id, content: content}
   end
 
   def next_id(pid) do
@@ -26,7 +38,8 @@ defmodule MessageAgent do
     not MapSet.member?(msgs, id)
   end
 
-  def put_msg(pid, %{id: id}) do
+  def put_msg(pid, %{id: id}), do: put_msg(pid, id)
+  def put_msg(pid, id) when is_binary(id) do
     Agent.update pid, fn %{msgs: msgs} = map ->
       new_mapset = MapSet.put(msgs, id)
       Map.put(map, :msgs, new_mapset)
