@@ -1,0 +1,2 @@
+%{"mox": {:hex, :mox, "0.3.1", "2ab1dce006387a91fbe1e727ba468d3e0691eacfd4e2fc7308d53676ec335c46", [:mix], [], "hexpm"},
+  "msgpax": {:hex, :msgpax, "2.1.0", "6ca513821f4654e0e6762a673b60b4c9a81fd8a0db7f7618a8b06bfdc1f1fbdd", [:mix], [{:plug, "~> 1.0", [hex: :plug, repo: "hexpm", optional: true]}], "hexpm"}}
