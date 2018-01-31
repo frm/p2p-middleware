@@ -7,13 +7,8 @@ defmodule Gossip.TCPSocketCase do
 
   using do
     quote do
-      @socket_opts [:binary,
-                    packet: 0,
-                    active: false,
-                    reuseaddr: :true]
-
       def connect_to_tcp_socket(port) do
-        :gen_tcp.connect('localhost', port, @socket_opts)
+        TCP.connect_to('localhost', port)
       end
 
       def assert_reply(socket) do

@@ -1,8 +1,19 @@
 defmodule Inet do
-  def active_mac_addr do
-    [{_ip, mac_addr} | _] = non_local_ipv4_ifaddrs()
+  @localhost_mac_addr "ff:ff:ff:ff:ff:ff"
 
-    from_base_16(mac_addr)
+  def active_mac_addr do
+    case non_local_ipv4_ifaddrs() do
+      [{_ip, mac_addr} | _] ->
+        from_base_16(mac_addr)
+
+      # This only happens when we are not connected to the internet.
+      # This means we are only running in localhost and can safely return
+      # a fake MAC Address. At most, the nodes would be identified by their
+      # local process identifiers. This is leaking knowledge but I'm ok with it
+      # since I'm in a car trip right now and I have no other way to test this
+      [] ->
+        @localhost_mac_addr
+    end
   end
 
   defp non_local_ipv4_ifaddrs do

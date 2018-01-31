@@ -18,7 +18,9 @@ defmodule GossipTest do
 
     test "sets the the default state" do
       assert {:ok, state} = Gossip.init(%{port: 3000})
-      assert %{messages: [], neighbours: %{}, server: _} = state
+      assert %{message_agent: _, neighbours: %{}, server: _} = state
+      assert is_pid(state.message_agent)
+      assert is_pid(state.server)
     end
   end
 
@@ -77,6 +79,72 @@ defmodule GossipTest do
       {:noreply, _} = Gossip.handle_cast({:broadcast, str}, mock_state)
 
       assert_received {:send, _msg}
+    end
+  end
+
+  describe "handle_call/3 for :connect message" do
+    test "returns {:ok, :connected}" do
+      {:ok, _server} = Gossip.start_link(3000)
+      default_state = %{neighbours: %{}}
+
+      resp = Gossip.handle_call(
+        {:connect, 'localhost', 3000},
+        self(),
+        default_state
+      )
+
+      assert {:reply, {:ok, :connected}, _} = resp
+    end
+
+    test "updates the neighbour list" do
+      {:ok, _server} = Gossip.start_link(3000)
+      default_state = %{neighbours: %{}}
+
+      {:reply, _, state} = Gossip.handle_call(
+        {:connect, 'localhost', 3000},
+        self(),
+        default_state
+      )
+
+      assert Enum.count(state.neighbours) > 0
+    end
+
+    test "creates a worker progress" do
+      {:ok, _server} = Gossip.start_link(3000)
+      default_state = %{neighbours: %{}}
+
+      {:reply, _, state} = Gossip.handle_call(
+        {:connect, 'localhost', 3000},
+        self(),
+        default_state
+      )
+
+      {pid, _} = Enum.at(state.neighbours, 0)
+      assert Process.alive?(pid)
+    end
+
+    test "fails if impossible to connect" do
+      default_state = %{neighbours: %{}}
+
+      resp = Gossip.handle_call(
+        {:connect, 'localhost', 3000},
+        self(),
+        default_state
+      )
+
+      assert {:reply, {:error, _}, _} = resp
+    end
+
+    test "does not update the neighbour list if impossible to connect" do
+      default_state = %{neighbours: %{}}
+
+      {:reply, _, state} = Gossip.handle_call(
+        {:connect, 'localhost', 3000},
+        self(),
+        default_state
+      )
+
+      assert Enum.count(state.neighbours) == 0
     end
   end
 

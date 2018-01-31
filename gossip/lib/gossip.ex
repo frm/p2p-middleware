@@ -21,6 +21,10 @@ defmodule Gossip do
     GenServer.call(pid, {:recv, msg})
   end
 
+  def connect(pid, host, port) do
+    GenServer.call(pid, {:connect, host, port})
+  end
+
   # Client API
 
   def init(%{port: port} = default_state) do
@@ -37,11 +41,7 @@ defmodule Gossip do
   end
 
   def handle_cast({:accept, socket}, state) do
-    {:ok, pid} = start_worker(socket)
-    :gen_tcp.controlling_process(socket, pid)
-
-    neighbours = Map.put(state[:neighbours], pid, socket)
-    new_state = %{state | neighbours: neighbours}
+    new_state = assign_worker(socket, state)
 
     {:noreply, new_state}
   end
@@ -71,6 +71,19 @@ defmodule Gossip do
     {:reply, msg, state}
   end
 
+  def handle_call({:connect, host, port}, _from, state) do
+    {reply, new_state} = case TCP.connect_to(host, port, [active: true]) do
+      {:ok, socket} ->
+        new_state = assign_worker(socket, state)
+        {{:ok, :connected}, new_state}
+
+      {:error, _} = error ->
+        {error, state}
+    end
+
+    {:reply, reply, new_state}
+  end
+
   defp start_message_agent, do: MessageAgent.start_link()
 
   defp start_server(port) do
@@ -93,5 +106,13 @@ defmodule Gossip do
     Supervisor.which_children(supervisor)
     |> List.first
     |> elem(1)
+  end
+
+  defp assign_worker(socket, state) do
+    {:ok, pid} = start_worker(socket)
+    TCP.controlling_process(socket, pid)
+
+    neighbours = Map.put(state[:neighbours], pid, socket)
+    %{state | neighbours: neighbours}
   end
 end

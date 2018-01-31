@@ -54,7 +54,7 @@ defmodule Gossip.WorkerTest do
 
   defp start_task(pid, socket) do
     {:ok, task} = Task.start fn -> Gossip.Worker.recv_loop(pid, socket) end
-    :gen_tcp.controlling_process(socket, task)
+    TCP.controlling_process(socket, task)
 
     {:ok, task}
   end

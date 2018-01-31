@@ -14,25 +14,25 @@ defmodule Gossip.Worker do
         true
 
       {:tcp_closed, port} ->
-        :gen_tcp.close(port)
+        TCP.close(port)
         Gossip.disconnect(pid, self())
 
         false
 
       {:send, msg} ->
-        :gen_tcp.send(socket, msg)
+        TCP.send(socket, msg)
 
         true
 
       msg ->
-        IO.inspect msg
+        IO.inspect(msg)
 
-        false
+        true
     end
 
     continue and recv_loop(pid, socket)
   end
 
   defp handle_reply(:noreply, _socket), do: nil
-  defp handle_reply(reply, socket), do: :gen_tcp.send(socket, reply)
+  defp handle_reply(reply, socket), do: TCP.send(socket, reply)
 end
