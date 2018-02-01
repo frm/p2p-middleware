@@ -18,6 +18,8 @@ defmodule Gossip.Server do
 
     Gossip.accept(pid, client)
 
+    Gossip.Logger.info("[SERVER]: Connection received: #{inspect client}")
+
     accept_loop(pid, server_socket)
   end
 end
