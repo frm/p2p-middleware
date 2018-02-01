@@ -155,21 +155,30 @@ defmodule GossipTest do
     test "updates the message agent with new message ids" do
       str = "Tell me is something eluding you, sunshine?"
       {:ok, state} = Gossip.init(%{port: 3000, callback: @default_callback})
-      {:ok, socket} = connect_to_tcp_socket(3000)
+      {:ok, _socket} = connect_to_tcp_socket(3000)
       {:ok, packed_msg} = MessageAgent.pack(%{id: "1", content: str})
-      mock_state = %{state | neighbours: [{self(), socket}]}
 
-      {:noreply, new_state} = Gossip.handle_cast({:recv, packed_msg}, mock_state)
+      {:noreply, _} = Gossip.handle_cast({:recv, packed_msg}, state)
 
       refute [] == MessageAgent.get_msgs(state.message_agent)
     end
 
     test "invokes the callback for new messages" do
-      # TODO: Use Mox
+      str = "Is this not what you expected to see?"
+      pid = self()
+      msg = %{id: "1", content: str}
+      callback = fn m -> send pid, m end
+      {:ok, state} = Gossip.init(%{port: 3000, callback: callback})
+      {:ok, _socket} = connect_to_tcp_socket(3000)
+      {:ok, packed_msg} = MessageAgent.pack(msg)
+
+      {:noreply, _} = Gossip.handle_cast({:recv, packed_msg}, state)
+
+      assert_received ^str
     end
 
     test "broadcasts the new message to neighbours" do
-      str = "Is this not what you expected to see?"
+      str = "If you wanna find out what's behind these cold eyes"
       msg = %{id: "1", content: str}
       {:ok, state} = Gossip.init(%{port: 3000, callback: @default_callback})
       {:ok, socket} = connect_to_tcp_socket(3000)
@@ -185,7 +194,7 @@ defmodule GossipTest do
     end
 
     test "discards repeated messages" do
-      str = "Is this not what you expected to see?"
+      str = "You'll just have to claw your way through this disguise"
       msg = %{id: "1", content: str}
       {:ok, state} = Gossip.init(%{port: 3000, callback: @default_callback})
       {:ok, socket} = connect_to_tcp_socket(3000)
