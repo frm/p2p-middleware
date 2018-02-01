@@ -1,8 +1,8 @@
 defmodule Gossip do
   use GenServer
 
-  def start_link(port, opts \\ []) do
-    GenServer.start_link(__MODULE__, %{port: port}, opts)
+  def start_link([port: port, callback: callback], opts \\ []) do
+    GenServer.start_link(__MODULE__, %{port: port, callback: callback}, opts)
   end
 
   def accept(pid, socket) do
@@ -18,7 +18,7 @@ defmodule Gossip do
   end
 
   def recv(pid, msg) do
-    GenServer.call(pid, {:recv, msg})
+    GenServer.cast(pid, {:recv, msg})
   end
 
   def connect(pid, host, port) do
@@ -27,7 +27,7 @@ defmodule Gossip do
 
   # Client API
 
-  def init(%{port: port} = default_state) do
+  def init(%{port: port, callback: callback} = default_state) do
     {:ok, server} = start_server(port)
     {:ok, message_agent} = start_message_agent()
 
@@ -36,6 +36,7 @@ defmodule Gossip do
       |> Map.put(:neighbours, %{})
       |> Map.put(:server, server)
       |> Map.put(:message_agent, message_agent)
+      |> Map.put(:callback, callback)
 
     {:ok, state}
   end
@@ -53,12 +54,9 @@ defmodule Gossip do
     {:noreply, new_state}
   end
 
-  def handle_cast({:broadcast, msg}, state) do
+  def handle_cast({:broadcast, %{id: _, content: _} = msg}, state) do
     %{neighbours: neighbours, message_agent: message_agent} = state
-    {:ok, packed_msg} =
-      message_agent
-      |> MessageAgent.build!(msg)
-      |> MessageAgent.pack
+    {:ok, packed_msg} = MessageAgent.pack(msg)
 
     Enum.each neighbours, fn({pid, _socket}) ->
       send pid, {:send, packed_msg}
@@ -66,9 +64,25 @@ defmodule Gossip do
 
     {:noreply, state}
   end
+  def handle_cast({:broadcast, msg}, %{message_agent: message_agent} = state) do
+    formatted_msg = MessageAgent.build!(message_agent, msg)
 
-  def handle_call({:recv, msg}, _from, state) do
-    {:reply, msg, state}
+    handle_cast({:broadcast, formatted_msg}, state)
+  end
+
+  def handle_cast({:recv, packed_msg}, state) do
+    case MessageAgent.unpack(packed_msg) do
+      {:ok, %{id: _, content: content} = msg} ->
+        if MessageAgent.new_msg?(state.message_agent, msg) do
+          MessageAgent.put_msg(state.message_agent, msg)
+          state.callback.(content)
+          Gossip.broadcast(self(), msg)
+        end
+      _ ->
+        nil
+    end
+
+    {:noreply, state}
   end
 
   def handle_call({:connect, host, port}, _from, state) do

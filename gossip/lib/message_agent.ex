@@ -1,8 +1,6 @@
 defmodule MessageAgent do
   defdelegate pack(msg), to: Msgpax
-  defdelegate unpack(msg), to: Msgpax
   defdelegate pack!(msg), to: Msgpax
-  defdelegate unpack!(msg), to: Msgpax
 
   def start_link do
     Agent.start_link fn -> %{id: 0, msgs: MapSet.new} end
@@ -44,6 +42,21 @@ defmodule MessageAgent do
       new_mapset = MapSet.put(msgs, id)
       Map.put(map, :msgs, new_mapset)
     end
+  end
+
+  def unpack(msg) do
+    case Msgpax.unpack(msg) do
+      {:ok, %{"id" => id, "content" => content}} ->
+        {:ok, %{id: id, content: content}}
+      {:error, _} = error ->
+        error
+    end
+  end
+
+  def unpack!(msg) do
+    %{"id" => id, "content" => content} = Msgpax.unpack!(msg)
+
+    %{id: id, content: content}
   end
 
   def deterministic_hash_id(id) do

@@ -7,9 +7,8 @@ defmodule Gossip.Worker do
 
   def recv_loop(pid, socket) do
     continue = receive do
-      {:tcp, port, msg} ->
+      {:tcp, _port, msg} ->
         Gossip.recv(pid, msg)
-        |> handle_reply(port)
 
         true
 
@@ -32,7 +31,4 @@ defmodule Gossip.Worker do
 
     continue and recv_loop(pid, socket)
   end
-
-  defp handle_reply(:noreply, _socket), do: nil
-  defp handle_reply(reply, socket), do: TCP.send(socket, reply)
 end
