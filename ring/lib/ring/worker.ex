@@ -8,7 +8,7 @@ defmodule Ring.Worker do
   def recv_loop(pid, socket) do
     continue = receive do
       {:tcp, _port, msg} ->
-        Ring.recv(pid, msg)
+        Ring.recv(pid, msg, {self(), socket})
 
         Ring.Logger.info(
           "[WORKER #{inspect self()}]: Received message from #{inspect socket}"

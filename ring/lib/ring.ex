@@ -17,8 +17,20 @@ defmodule Ring do
     GenServer.cast(pid, {:broadcast, msg})
   end
 
-  def recv(pid, msg) do
-    GenServer.cast(pid, {:recv, msg})
+  def recv(pid, packed_msg, {pid, _socket} = from) do
+    case MessageAgent.unpack(packed_msg) do
+      {:ok, %{type: "msg", content: msg}} ->
+        GenServer.cast(pid, {:msg, msg})
+
+      {:ok, %{type: "next", content: nil}} ->
+        GenServer.cast(pid, {:next, from})
+
+      {:ok, %{type: "next", content: next}} ->
+        GenServer.cast(pid, {:next, {pid, next}})
+
+      _ ->
+        {:error, :unknown_format}
+    end
   end
 
   def connect(pid, host, port) do
@@ -33,7 +45,7 @@ defmodule Ring do
 
     state =
       default_state
-      |> Map.put(:neighbours, %{})
+      |> Map.put(:next, nil)
       |> Map.put(:server, server)
       |> Map.put(:message_agent, message_agent)
       |> Map.put(:callback, callback)
@@ -48,19 +60,14 @@ defmodule Ring do
   end
 
   def handle_cast({:disconnect, pid}, state) do
-    neighbours = Map.delete(state[:neighbours], pid)
-    new_state = %{state | neighbours: neighbours}
-
-    {:noreply, new_state}
+    {:noreply, %{state | next: nil}}
   end
 
   def handle_cast({:broadcast, %{id: _, content: _} = msg}, state) do
-    %{neighbours: neighbours, message_agent: message_agent} = state
-    {:ok, packed_msg} = MessageAgent.pack(msg)
+    %{next: {pid, _socket}, message_agent: message_agent} = state
+    {:ok, packed_msg} = MessageAgent.pack(%{type: :msg, content: msg})
 
-    Enum.each neighbours, fn({pid, _socket}) ->
-      send pid, {:send, packed_msg}
-    end
+    send pid, {:send, packed_msg}
 
     {:noreply, state}
   end
@@ -70,19 +77,19 @@ defmodule Ring do
     handle_cast({:broadcast, formatted_msg}, state)
   end
 
-  def handle_cast({:recv, packed_msg}, state) do
-    case MessageAgent.unpack(packed_msg) do
-      {:ok, %{id: _, content: content} = msg} ->
-        if MessageAgent.new_msg?(state.message_agent, msg) do
-          MessageAgent.put_msg(state.message_agent, msg)
-          state.callback.(content)
-          Ring.broadcast(self(), msg)
-        end
-      _ ->
-        nil
+  def handle_cast({:msg, msg}, state) do
+    if MessageAgent.new_msg?(state.message_agent, msg) do
+      MessageAgent.put_msg(state.message_agent, msg)
+      state.callback.(msg.content)
+      Ring.broadcast(self(), msg)
     end
 
     {:noreply, state}
+  end
+
+  def handle_cast({:next, next}, state) do
+    IO.inspect "#{inspect self()} received :next == #{inspect next}"
+    {:noreply, %{state | next: next}}
   end
 
   def handle_call({:connect, host, port}, _from, state) do
@@ -125,8 +132,14 @@ defmodule Ring do
   defp assign_worker(socket, state) do
     {:ok, pid} = start_worker(socket)
     TCP.controlling_process(socket, pid)
+    content = case state.next do
+      nil -> nil
+      {_pid, socket} -> socket
+    end
 
-    neighbours = Map.put(state[:neighbours], pid, socket)
-    %{state | neighbours: neighbours}
+    {:ok, msg} = MessageAgent.pack(%{type: :next, content: content})
+    send pid, {:send, msg}
+
+    %{state | next: {pid, socket}}
   end
 end

@@ -46,8 +46,9 @@ defmodule MessageAgent do
 
   def unpack(msg) do
     case Msgpax.unpack(msg) do
-      {:ok, %{"id" => id, "content" => content}} ->
-        {:ok, %{id: id, content: content}}
+      {:ok, msg} ->
+        {:ok, deep_symbolize_keys(msg)}
+
       {:error, _} = error ->
         error
     end
@@ -68,4 +69,14 @@ defmodule MessageAgent do
     msg_ref = msg_id <> beam_ref <> machine_ref <> global_ref
     :crypto.hash(:sha256, msg_ref) |> Base.encode16
   end
+
+  def deep_symbolize_keys(%{} = map) do
+    Enum.into(map, %{}, fn
+      {k, v} when is_binary(k) ->
+        {String.to_atom(k), deep_symbolize_keys(v)}
+      other ->
+        other
+    end)
+  end
+  def deep_symbolize_keys(x), do: x
 end
